@@ -21,7 +21,7 @@ export default function QuizCreatePage() {
 
     const handleCreate = async () => {
         const { error } = await createQuiz({
-            course_id: params.courseId,
+            course_id: courseId,
             title,
             description,
             time_limit_minutes: duration,

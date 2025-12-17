@@ -219,6 +219,13 @@ export const useLMSStore = create<LMSState>((set, get) => ({
         return { error };
     },
 
+    deleteQuiz: async (quizId) => {
+        const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
+        // We might need to reload quizzes or remove from local state
+        // For simplicity, just return error for now, or could optimally remove from state
+        return { error };
+    },
+
     createQuestion: async (question) => {
         const { error } = await supabase.from('quiz_questions').insert(question);
         return { error };
