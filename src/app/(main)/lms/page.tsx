@@ -168,8 +168,8 @@ export default function LMSDashboardPage() {
                         <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
                         <Button onClick={handleCreateCourse}>Create</Button>
                     </DialogFooter>
-                </DialogContent >
-            </Dialog >
-        </div >
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 }
