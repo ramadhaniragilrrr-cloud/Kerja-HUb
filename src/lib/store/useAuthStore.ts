@@ -30,30 +30,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     isLoading: true,
 
     checkSession: async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-            // Fetch additional profile data
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                // Fetch additional profile data
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
 
-            set({
-                user: {
-                    id: session.user.id,
-                    email: session.user.email!,
-                    name: profile?.full_name || session.user.email!.split('@')[0],
-                    avatar: profile?.avatar_url,
-                    role: profile?.role || 'user',
-                    phone: profile?.phone,
-                    address: profile?.address,
-                    outlet_id: profile?.outlet_id
-                },
-                isAuthenticated: true,
-                isLoading: false
-            });
-        } else {
+                set({
+                    user: {
+                        id: session.user.id,
+                        email: session.user.email!,
+                        name: profile?.full_name || session.user.email!.split('@')[0],
+                        avatar: profile?.avatar_url,
+                        role: profile?.role || 'user',
+                        phone: profile?.phone,
+                        address: profile?.address,
+                        outlet_id: profile?.outlet_id
+                    },
+                    isAuthenticated: true,
+                    isLoading: false
+                });
+            } else {
+                set({ user: null, isAuthenticated: false, isLoading: false });
+            }
+        } catch (error) {
+            console.error('Error checking session:', error);
             set({ user: null, isAuthenticated: false, isLoading: false });
         }
     },
