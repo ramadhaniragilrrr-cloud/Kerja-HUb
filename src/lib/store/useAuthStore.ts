@@ -37,8 +37,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('*')
-                    .eq('id', session.user.id)
-                    .single();
+                .eq('id', session.user.id)
+                .single();
+
+                const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+                    .split(',')
+                    .map((e) => e.trim().toLowerCase())
+                    .filter(Boolean);
+                const isAdmin = adminEmails.includes((session.user.email || '').toLowerCase());
+                const resolvedRole: 'admin' | 'user' = isAdmin ? 'admin' : ((profile?.role?.trim().toLowerCase() as any) || 'user');
+                if (isAdmin && profile?.role !== 'admin') {
+                    await supabase
+                        .from('profiles')
+                        .update({ role: 'admin' })
+                        .eq('id', session.user.id);
+                }
 
                 set({
                     user: {
@@ -46,7 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                         email: session.user.email!,
                         name: profile?.full_name || session.user.email!.split('@')[0],
                         avatar: profile?.avatar_url,
-                        role: (profile?.role?.trim().toLowerCase() as any) || 'user',
+                        role: resolvedRole,
                         phone: profile?.phone,
                         address: profile?.address,
                         outlet_id: profile?.outlet_id
@@ -78,13 +91,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 .eq('id', data.user.id)
                 .single();
 
+            const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+                .split(',')
+                .map((e) => e.trim().toLowerCase())
+                .filter(Boolean);
+            const isAdmin = adminEmails.includes((data.user.email || '').toLowerCase());
+            const resolvedRole: 'admin' | 'user' = isAdmin ? 'admin' : ((profile?.role?.trim().toLowerCase() as any) || 'user');
+            if (isAdmin && profile?.role !== 'admin') {
+                await supabase
+                    .from('profiles')
+                    .update({ role: 'admin' })
+                    .eq('id', data.user.id);
+            }
+
             set({
                 user: {
                     id: data.user.id,
                     email: data.user.email!,
                     name: profile?.full_name || data.user.email!.split('@')[0],
                     avatar: profile?.avatar_url,
-                    role: (profile?.role?.trim().toLowerCase() as any) || 'user',
+                    role: resolvedRole,
                     phone: profile?.phone,
                     address: profile?.address,
                     outlet_id: profile?.outlet_id
@@ -112,11 +138,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // but for simplicity we can manually insert or rely on the trigger if specificed in schema.
         // Our schema didn't specify a trigger, so let's try to insert profile manually here for safety.
         if (data.user) {
+            const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+                .split(',')
+                .map((e) => e.trim().toLowerCase())
+                .filter(Boolean);
+            const isAdmin = adminEmails.includes((email || '').toLowerCase());
+            const role: 'admin' | 'user' = isAdmin ? 'admin' : 'user';
             await supabase.from('profiles').insert({
                 id: data.user.id,
                 email: email,
                 full_name: name,
-                role: 'user' // Default
+                role
             });
 
             set({
@@ -124,7 +156,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     id: data.user.id,
                     email: email,
                     name: name,
-                    role: 'user'
+                    role
                 },
                 isAuthenticated: true
             });
