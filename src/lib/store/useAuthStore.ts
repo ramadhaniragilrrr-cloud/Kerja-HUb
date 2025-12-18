@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                         email: session.user.email!,
                         name: profile?.full_name || session.user.email!.split('@')[0],
                         avatar: profile?.avatar_url,
-                        role: profile?.role || 'user',
+                        role: (profile?.role?.trim().toLowerCase() as any) || 'user',
                         phone: profile?.phone,
                         address: profile?.address,
                         outlet_id: profile?.outlet_id
@@ -84,7 +84,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     email: data.user.email!,
                     name: profile?.full_name || data.user.email!.split('@')[0],
                     avatar: profile?.avatar_url,
-                    role: profile?.role || 'user',
+                    role: (profile?.role?.trim().toLowerCase() as any) || 'user',
                     phone: profile?.phone,
                     address: profile?.address,
                     outlet_id: profile?.outlet_id
