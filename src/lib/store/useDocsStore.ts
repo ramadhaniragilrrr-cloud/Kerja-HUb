@@ -11,6 +11,7 @@ export interface Doc {
     authorId: string;
     type?: 'text' | 'file';
     file_url?: string;
+    file_path?: string;
 }
 
 interface DocsState {
@@ -40,9 +41,21 @@ export const useDocsStore = create<DocsState>()(
                     doc.id === id ? { ...doc, ...updates, lastModified: Date.now() } : doc
                 )
             })),
-            deleteDoc: (id) => set((state) => ({
-                documents: state.documents.filter((doc) => doc.id !== id)
-            })),
+            deleteDoc: async (id) => {
+                const user = useAuthStore.getState().user;
+                if (!user || user.role !== 'admin') return;
+                const doc = get().documents.find(d => d.id === id);
+                if (doc?.type === 'file') {
+                    const path = doc.file_path || (doc.file_url ? doc.file_url.split('/storage/v1/object/public/docs/')[1] : undefined);
+                    if (path) {
+                        await supabase.storage.from('docs').remove([path]);
+                    }
+                }
+                await supabase.from('documents').delete().eq('id', id);
+                set((state) => ({
+                    documents: state.documents.filter((d) => d.id !== id)
+                }));
+            },
             uploadDoc: async (file) => {
                 const user = useAuthStore.getState().user;
                 if (!user) return { error: "User not logged in" };
@@ -68,7 +81,8 @@ export const useDocsStore = create<DocsState>()(
                     lastModified: Date.now(),
                     authorId: user.id,
                     type: 'file',
-                    file_url: publicUrl
+                    file_url: publicUrl,
+                    file_path: filePath
                 };
 
                 set((state) => ({ documents: [newDoc, ...state.documents] }));

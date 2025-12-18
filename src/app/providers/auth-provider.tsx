@@ -15,7 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                 checkSession();
             } else if (event === 'SIGNED_OUT') {
-                useAuthStore.getState().logout();
+                useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: false });
             }
         });
 

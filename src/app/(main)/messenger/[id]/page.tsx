@@ -50,10 +50,10 @@ export default function ChatWindowPage() {
                 <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                         <AvatarImage src={`https://avatar.vercel.sh/${id}`} />
-                        <AvatarFallback>C</AvatarFallback>
+                        <AvatarFallback>{activeChat?.name?.[0] || 'C'}</AvatarFallback>
                     </Avatar>
                     <div>
-                        <h2 className="font-semibold text-slate-900 dark:text-white">Chat Room</h2>
+                        <h2 className="font-semibold text-slate-900 dark:text-white">{activeChat?.name || "Chat Room"}</h2>
                         <div className="flex items-center gap-2">
                             <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
                             <span className="text-xs text-slate-500">Online</span>

@@ -74,9 +74,12 @@ interface LMSState {
     submitAssignment: (assignmentId: string, content: string) => Promise<{ error: any }>;
     createCourse: (course: Partial<Course>) => Promise<{ error: any }>;
     createLesson: (lesson: Partial<Lesson> & { courseId: string }) => Promise<{ error: any }>;
+    updateLesson: (lessonId: string, updates: Partial<Lesson>) => Promise<{ error: any }>;
+    deleteLesson: (lessonId: string, courseId: string) => Promise<{ error: any }>;
     createQuiz: (quiz: Partial<Quiz>) => Promise<{ error: any }>;
+    updateQuiz: (quizId: string, updates: Partial<Quiz>) => Promise<{ error: any }>;
+    deleteQuiz: (quizId: string, courseId: string) => Promise<{ error: any }>;
     createQuestion: (question: Partial<QuizQuestion>) => Promise<{ error: any }>;
-    deleteQuiz: (quizId: string) => Promise<{ error: any }>;
     submitQuiz: (quizId: string, score: number) => Promise<{ error: any }>;
     uploadLessonContent: (file: File) => Promise<{ publicUrl?: string; error: any }>;
 }
@@ -88,14 +91,29 @@ export const useLMSStore = create<LMSState>((set, get) => ({
     quizzes: {},
 
     loadCourses: async () => {
-        // Fetch courses for the dashboard
+        const user = useAuthStore.getState().user;
         const { data: courses } = await supabase.from('courses').select('*');
-        if (courses) {
-            // For MVP, we might want to attach progress
-            // This logic needs to be expanded for real progress fetching, 
-            // but keeping it simple for now to match the "mock-to-real" transition style
-            set({ courses: courses.map(c => ({ ...c, progress: 0, completedLessons: 0 })) as any });
+        const { data: lessons } = await supabase.from('lessons').select('id, course_id');
+        let completedRows: any[] = [];
+        if (user) {
+            const { data } = await supabase
+                .from('user_lesson_progress')
+                .select('lesson_id, completed')
+                .eq('user_id', user.id);
+            completedRows = data || [];
         }
+        const completedMap: Record<string, boolean> = {};
+        for (const row of completedRows) {
+            completedMap[row.lesson_id] = !!row.completed;
+        }
+        const coursesWithProgress = (courses || []).map((c: any) => {
+            const courseLessons = (lessons || []).filter((l: any) => l.course_id === c.id);
+            const total = courseLessons.length;
+            const completed = courseLessons.filter((l: any) => completedMap[l.id]).length;
+            const progress = total ? (completed / total) * 100 : 0;
+            return { ...c, totalLessons: total, completedLessons: completed, progress };
+        });
+        set({ courses: coursesWithProgress as any });
     },
 
     loadCourseContent: async (courseId) => {
@@ -145,7 +163,11 @@ export const useLMSStore = create<LMSState>((set, get) => ({
         set((state) => {
             const courseLessons = state.lessons[courseId] || [];
             const updatedLessons = courseLessons.map(l => l.id === lessonId ? { ...l, completed: true } : l);
-            return { lessons: { ...state.lessons, [courseId]: updatedLessons } };
+            const total = updatedLessons.length;
+            const completed = updatedLessons.filter((l: any) => l.completed).length;
+            const progress = total ? (completed / total) * 100 : 0;
+            const updatedCourses = (state.courses || []).map((c: any) => c.id === courseId ? { ...c, totalLessons: total, completedLessons: completed, progress } : c);
+            return { lessons: { ...state.lessons, [courseId]: updatedLessons }, courses: updatedCourses };
         });
     },
 
@@ -199,6 +221,44 @@ export const useLMSStore = create<LMSState>((set, get) => ({
         return { error };
     },
 
+    updateLesson: async (lessonId, updates) => {
+        const { error } = await supabase
+            .from('lessons')
+            .update({
+                title: updates.title,
+                content: updates.content,
+                duration: updates.duration,
+                type: updates.type
+            })
+            .eq('id', lessonId);
+
+        if (!error) {
+             // Reload content to refresh UI
+             // Ideally we'd just update local state, but this is safer
+             const lesson = get().lessons[Object.keys(get().lessons).find(cid => get().lessons[cid].find(l => l.id === lessonId)) || ''];
+             if (lesson && lesson[0]?.courseId) {
+                 await get().loadCourseContent(lesson[0].courseId);
+             } else {
+                 // Fallback: try to find courseId from the lesson object in state
+                 for (const cid in get().lessons) {
+                     if (get().lessons[cid].some(l => l.id === lessonId)) {
+                         await get().loadCourseContent(cid);
+                         break;
+                     }
+                 }
+             }
+        }
+        return { error };
+    },
+
+    deleteLesson: async (lessonId, courseId) => {
+        const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+        if (!error) {
+            await get().loadCourseContent(courseId);
+        }
+        return { error };
+    },
+
     // Quiz Actions
     loadQuizzes: async (courseId) => {
         const { data: quizzes } = await supabase
@@ -219,10 +279,29 @@ export const useLMSStore = create<LMSState>((set, get) => ({
         return { error };
     },
 
-    deleteQuiz: async (quizId) => {
+    updateQuiz: async (quizId, updates) => {
+        const { error } = await supabase
+            .from('quizzes')
+            .update(updates)
+            .eq('id', quizId);
+        
+        // Find courseId to reload
+        if (!error) {
+            for (const cid in get().quizzes) {
+                if (get().quizzes[cid].some(q => q.id === quizId)) {
+                    await get().loadQuizzes(cid);
+                    break;
+                }
+            }
+        }
+        return { error };
+    },
+
+    deleteQuiz: async (quizId, courseId) => {
         const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
-        // We might need to reload quizzes or remove from local state
-        // For simplicity, just return error for now, or could optimally remove from state
+        if (!error) {
+            await get().loadQuizzes(courseId);
+        }
         return { error };
     },
 

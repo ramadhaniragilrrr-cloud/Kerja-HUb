@@ -156,7 +156,7 @@ export default function QuizPage() {
 
     const handleQuizDelete = async () => {
         if (confirm("Are you sure you want to DELETE this entire exam? This action cannot be undone.")) {
-            const { error } = await deleteQuiz(quizId);
+            const { error } = await deleteQuiz(quizId, courseId);
             if (error) {
                 alert("Failed to delete quiz: " + error.message);
             } else {

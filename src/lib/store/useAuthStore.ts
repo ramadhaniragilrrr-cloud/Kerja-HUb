@@ -44,7 +44,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     .split(',')
                     .map((e) => e.trim().toLowerCase())
                     .filter(Boolean);
-                const isAdmin = adminEmails.includes((session.user.email || '').toLowerCase());
+                const adminDomain = (process.env.NEXT_PUBLIC_ADMIN_EMAIL_DOMAIN || '').trim().toLowerCase();
+                const emailLower = (session.user.email || '').toLowerCase();
+                const isAdmin = adminEmails.includes(emailLower) || (adminDomain && emailLower.endsWith(`@${adminDomain}`));
                 const resolvedRole: 'admin' | 'user' = isAdmin ? 'admin' : ((profile?.role?.trim().toLowerCase() as any) || 'user');
                 if (isAdmin && profile?.role !== 'admin') {
                     await supabase
@@ -95,7 +97,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 .split(',')
                 .map((e) => e.trim().toLowerCase())
                 .filter(Boolean);
-            const isAdmin = adminEmails.includes((data.user.email || '').toLowerCase());
+            const adminDomain = (process.env.NEXT_PUBLIC_ADMIN_EMAIL_DOMAIN || '').trim().toLowerCase();
+            const emailLower = (data.user.email || '').toLowerCase();
+            const isAdmin = adminEmails.includes(emailLower) || (adminDomain && emailLower.endsWith(`@${adminDomain}`));
             const resolvedRole: 'admin' | 'user' = isAdmin ? 'admin' : ((profile?.role?.trim().toLowerCase() as any) || 'user');
             if (isAdmin && profile?.role !== 'admin') {
                 await supabase
@@ -142,7 +146,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 .split(',')
                 .map((e) => e.trim().toLowerCase())
                 .filter(Boolean);
-            const isAdmin = adminEmails.includes((email || '').toLowerCase());
+            const adminDomain = (process.env.NEXT_PUBLIC_ADMIN_EMAIL_DOMAIN || '').trim().toLowerCase();
+            const emailLower = (email || '').toLowerCase();
+            const isAdmin = adminEmails.includes(emailLower) || (adminDomain && emailLower.endsWith(`@${adminDomain}`));
             const role: 'admin' | 'user' = isAdmin ? 'admin' : 'user';
             await supabase.from('profiles').insert({
                 id: data.user.id,
