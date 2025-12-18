@@ -79,7 +79,9 @@ interface LMSState {
     createQuiz: (quiz: Partial<Quiz>) => Promise<{ error: any }>;
     updateQuiz: (quizId: string, updates: Partial<Quiz>) => Promise<{ error: any }>;
     deleteQuiz: (quizId: string, courseId: string) => Promise<{ error: any }>;
+    loadQuestions: (quizId: string) => Promise<QuizQuestion[]>;
     createQuestion: (question: Partial<QuizQuestion>) => Promise<{ error: any }>;
+    deleteQuestion: (questionId: string) => Promise<{ error: any }>;
     submitQuiz: (quizId: string, score: number) => Promise<{ error: any }>;
     uploadLessonContent: (file: File) => Promise<{ publicUrl?: string; error: any }>;
 }
@@ -305,8 +307,22 @@ export const useLMSStore = create<LMSState>((set, get) => ({
         return { error };
     },
 
+    loadQuestions: async (quizId) => {
+        const { data } = await supabase
+            .from('quiz_questions')
+            .select('*')
+            .eq('quiz_id', quizId)
+            .order('id', { ascending: true }); // Assuming auto-increment ID or created_at
+        return (data as any[]) || [];
+    },
+
     createQuestion: async (question) => {
         const { error } = await supabase.from('quiz_questions').insert(question);
+        return { error };
+    },
+
+    deleteQuestion: async (questionId) => {
+        const { error } = await supabase.from('quiz_questions').delete().eq('id', questionId);
         return { error };
     },
 

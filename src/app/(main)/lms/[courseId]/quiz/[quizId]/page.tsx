@@ -16,7 +16,7 @@ export default function QuizPage() {
     const courseId = params.courseId as string;
     const quizId = params.quizId as string;
 
-    const { quizzes, loadQuizzes, submitQuiz, createQuestion, deleteQuiz } = useLMSStore();
+    const { quizzes, loadQuizzes, submitQuiz, createQuestion, deleteQuiz, loadQuestions, deleteQuestion } = useLMSStore();
     const { user } = useAuthStore();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
@@ -41,19 +41,18 @@ export default function QuizPage() {
     const [questions, setQuestions] = useState<any[]>([]);
 
     useEffect(() => {
-        if (!quiz) {
-            loadQuizzes(courseId).then(() => setIsLoading(false));
-        } else {
-            setIsLoading(false);
-            if (questions.length === 0) {
-                // Initial Mock Data or Fetch
-                setQuestions([
-                    { id: "q1", question_text: "What is the capital of Indonesia?", options: ["Bali", "Jakarta", "Surabaya", "Bandung"], correct_option_index: 1 },
-                    { id: "q2", question_text: "What does React use to update the UI?", options: ["Real DOM", "Shadow DOM", "Virtual DOM", "Magic"], correct_option_index: 2 },
-                ]);
+        const init = async () => {
+             if (!quiz) {
+                await loadQuizzes(courseId);
             }
-        }
-    }, [quiz, courseId, loadQuizzes]);
+            if (loadQuestions) {
+                const fetchedQuestions = await loadQuestions(quizId);
+                setQuestions(fetchedQuestions);
+            }
+            setIsLoading(false);
+        };
+        init();
+    }, [quiz, courseId, quizId, loadQuizzes, loadQuestions]);
 
     // Timer Logic - Starts only when hasStarted is true
     const handleStartQuiz = () => {
@@ -123,22 +122,22 @@ export default function QuizPage() {
             return;
         }
 
-        const newQuestion = {
-            id: Math.random().toString(36).substring(7),
-            quiz_id: quizId,
-            question_text: newQText,
-            options: newQOptions,
-            correct_option_index: newQCorrect
-        };
-
-        setQuestions([...questions, newQuestion]);
-
-        await createQuestion({
+        const { error } = await createQuestion({
             quiz_id: quizId,
             question_text: newQText,
             options: newQOptions,
             correct_option_index: newQCorrect
         });
+
+        if (error) {
+            alert("Failed to create question: " + error.message);
+            return;
+        }
+
+        if (loadQuestions) {
+            const fetchedQuestions = await loadQuestions(quizId);
+            setQuestions(fetchedQuestions);
+        }
 
         setIsAddingQuestion(false);
         setNewQText("");
@@ -146,11 +145,15 @@ export default function QuizPage() {
         setNewQCorrect(0);
     };
 
-    const handleDeleteQuestion = (indexToDelete: number) => {
+    const handleDeleteQuestion = async (questionId: string) => {
         if (confirm("Are you sure you want to delete this question?")) {
-            const updatedQuestions = questions.filter((_, idx) => idx !== indexToDelete);
-            setQuestions(updatedQuestions);
-            // In a real app, delete from DB here
+            const { error } = await deleteQuestion(questionId);
+            if (error) {
+                alert("Failed to delete question: " + error.message);
+            } else if (loadQuestions) {
+                const fetchedQuestions = await loadQuestions(quizId);
+                setQuestions(fetchedQuestions);
+            }
         }
     };
 
@@ -250,9 +253,9 @@ export default function QuizPage() {
 
                         <div className="space-y-2">
                             {questions.map((q, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 bg-white rounded border">
+                                <div key={q.id} className="flex items-center justify-between p-3 bg-white rounded border">
                                     <span className="truncate flex-1 font-medium text-sm">{idx + 1}. {q.question_text}</span>
-                                    <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteQuestion(idx)}>
+                                    <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteQuestion(q.id)}>
                                         <Trash className="h-4 w-4" />
                                     </Button>
                                 </div>
