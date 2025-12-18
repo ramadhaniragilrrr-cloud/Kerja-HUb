@@ -10,9 +10,13 @@ function getSupabaseClient(): SupabaseClient {
         // Return a dummy client during build time
         // This will be replaced with real client at runtime
         console.warn('Supabase credentials not found. Using placeholder client.');
-        return createClient('https://placeholder.supabase.co', 'placeholder-key');
+        return createClient('https://placeholder.supabase.co', 'placeholder-key', {
+            db: { schema: 'public' }
+        });
     }
-    return createClient(supabaseUrl, supabaseAnonKey);
+    return createClient(supabaseUrl, supabaseAnonKey, {
+        db: { schema: 'public' }
+    });
 }
 
 export const supabase = getSupabaseClient();
